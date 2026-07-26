@@ -27,14 +27,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Connection URL: {}", uri);
 
     let qr = QrCode::new(uri)?;
-    let qr_data = qr.render::<char>().quiet_zone(false).module_dimensions(2, 1).build();
+    let qr_data = qr
+        .render::<char>()
+        .quiet_zone(false)
+        .module_dimensions(2, 1)
+        .build();
     println!("QR Code:\n{}", qr_data);
 
     println!("Waiting for wallet to connect...");
     dapp.wait_for_link().await?;
     println!("Connected!");
 
-    let resp = dapp.send(json!({"method": "eth_chainId","params":[]})).await?;
+    let resp = dapp
+        .send(json!({"method": "eth_chainId","params":[]}))
+        .await?;
     println!("Response: {resp}");
 
     dapp.close().await?;
