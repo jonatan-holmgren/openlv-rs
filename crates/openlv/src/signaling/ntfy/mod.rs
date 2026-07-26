@@ -63,6 +63,8 @@ impl SignalingChannel for NtfyChannel {
         self.shutdown_tx = Some(shutdown_tx);
 
         let handler = Arc::clone(&self.handler);
+        let http_client = reqwest::Client::new();
+        let attachment_client = http_client.clone();
         let mut ready_tx = Some(ready_tx);
         tokio::spawn(async move {
             loop {
@@ -80,9 +82,24 @@ impl SignalingChannel for NtfyChannel {
                                         }
                                         Some("message") => {
                                             if let Some(body) = data.get("message").and_then(|value| value.as_str()) {
+                                                let body = match data
+                                                    .get("attachment")
+                                                    .and_then(|attachment| attachment.get("url"))
+                                                    .and_then(|url| url.as_str())
+                                                {
+                                                    Some(url) => match attachment_client.get(url).send().await {
+                                                        Ok(response) => match response.text().await {
+                                                            Ok(text) => text,
+                                                            Err(_) => continue,
+                                                        },
+                                                        Err(_) => continue,
+                                                    },
+                                                    None => body.to_owned(),
+                                                };
+
                                                 let guard = handler.lock().await;
                                                 if let Some(handler) = guard.as_ref() {
-                                                    handler(body.to_string());
+                                                    handler(body);
                                                 }
                                             }
                                         }
@@ -106,7 +123,7 @@ impl SignalingChannel for NtfyChannel {
             })?
             .map_err(|_| OpenLvError::Signaling("ntfy ready sender dropped".into()))?;
 
-        self.http_client = Some(reqwest::Client::new());
+        self.http_client = Some(http_client);
         Ok(())
     }
 
