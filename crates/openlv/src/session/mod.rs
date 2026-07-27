@@ -184,10 +184,11 @@ pub fn wallet(url: &str) -> SessionConfig {
 // Session handle
 // ---------------------------------------------------------------------------
 
+#[derive(Clone)]
 pub struct Session {
     inner: Arc<SessionInner>,
-    tasks: Mutex<Vec<JoinHandle<()>>>,
-    transport_events: Mutex<Option<mpsc::Receiver<TransportEvent>>>,
+    tasks: Arc<Mutex<Vec<JoinHandle<()>>>>,
+    transport_events: Arc<Mutex<Option<mpsc::Receiver<TransportEvent>>>>,
 }
 
 struct SessionInner {
@@ -319,8 +320,8 @@ fn build_session(
             decryption_key,
             on_message,
         }),
-        tasks: Mutex::new(Vec::new()),
-        transport_events: Mutex::new(Some(transport_events)),
+        tasks: Arc::new(Mutex::new(Vec::new())),
+        transport_events: Arc::new(Mutex::new(Some(transport_events))),
     }
 }
 
