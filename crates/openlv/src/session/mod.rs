@@ -187,7 +187,6 @@ pub fn wallet(url: &str) -> SessionConfig {
 #[derive(Clone)]
 pub struct Session {
     inner: Arc<SessionInner>,
-    tasks: Arc<Mutex<Vec<JoinHandle<()>>>>,
     transport_events: Arc<Mutex<Option<mpsc::Receiver<TransportEvent>>>>,
 }
 
@@ -204,6 +203,7 @@ struct SessionInner {
     error: RwLock<Option<String>>,
     decryption_key: DecryptionKey,
     on_message: RequestHandler,
+    tasks: Mutex<Vec<JoinHandle<()>>>,
 }
 
 pub async fn create_session(
@@ -319,8 +319,8 @@ fn build_session(
             error: RwLock::new(None),
             decryption_key,
             on_message,
+            tasks: Mutex::new(Vec::new()),
         }),
-        tasks: Arc::new(Mutex::new(Vec::new())),
         transport_events: Arc::new(Mutex::new(Some(transport_events))),
     }
 }
@@ -341,7 +341,8 @@ impl Session {
             tokio::spawn(Arc::clone(&self.inner).run_signal_message_loop()),
             tokio::spawn(Arc::clone(&self.inner).run_transport_event_loop(transport_events)),
         ];
-        self.tasks
+        self.inner
+            .tasks
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .extend(handles);
@@ -351,6 +352,7 @@ impl Session {
 
     pub async fn close(&self) -> Result<(), OpenLvError> {
         for task in self
+            .inner
             .tasks
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
@@ -523,7 +525,7 @@ impl Session {
     }
 }
 
-impl Drop for Session {
+impl Drop for SessionInner {
     fn drop(&mut self) {
         for task in self
             .tasks
