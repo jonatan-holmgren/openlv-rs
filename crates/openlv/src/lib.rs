@@ -63,6 +63,8 @@ pub mod signaling;
 pub mod transport;
 pub mod url;
 pub mod utils;
+#[cfg(feature = "wallet")]
+pub mod wallet;
 
 pub use errors::OpenLvError;
 pub use session::{

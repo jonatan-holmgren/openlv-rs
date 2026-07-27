@@ -14,10 +14,12 @@ path = "src/lib.rs"
 
 [features]
 default = ["runtime-tokio"]
+wallet = ["dep:alloy"]
 runtime-tokio = ["webrtc/runtime-tokio"]
 runtime-smol = ["webrtc/runtime-smol"]
 
 [dependencies]
+alloy = { version = "1.8", optional = true }
 aes-gcm = "0.10"
 async-trait = "0.1"
 futures = "0.3"
