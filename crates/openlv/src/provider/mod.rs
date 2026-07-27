@@ -18,10 +18,18 @@ pub struct Transport {
 
 /// Creates a new alloy `RpcClient` using the given session as the transport layer.
 ///
-/// ```no_run
-/// # let session = openlv::dapp().on_request(|_| async move Ok(json!({"result": "success"})).await.unwrap();
+/// ```rust,no_run
+/// # let _ = async {
+/// # use openlv::prelude::*;
+/// # let session = openlv::dapp()
+/// #     .on_request(|_| async move { Ok(json!({"result": "success"})) })
+/// #     .await
+/// #     ?;
 /// let client = openlv::provider::rpc_client(session);
 /// let provider = alloy::providers::ProviderBuilder::new().connect_client(client);
+/// # let _ = provider;
+/// # Ok::<(), openlv::OpenLvError>(())
+/// # };
 /// ```
 pub fn rpc_client(session: crate::Session) -> RpcClient {
     let transport = Transport::new(session);
