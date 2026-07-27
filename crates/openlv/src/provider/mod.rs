@@ -1,12 +1,8 @@
 use std::task::{Context, Poll};
 
-use alloy::{
-    rpc::{
-        client::RpcClient,
-        json_rpc::{RequestPacket, Response, ResponsePacket, SerializedRequest},
-    },
-    transports::{TransportError, TransportErrorKind, TransportFut},
-};
+use alloy_json_rpc::{RequestPacket, Response, ResponsePacket, SerializedRequest};
+use alloy_rpc_client::RpcClient;
+use alloy_transport::{TransportError, TransportErrorKind, TransportFut};
 use tower::Service;
 
 /// A transport layer for alloy using an OpenLV [`Session`] as the underlying
@@ -16,7 +12,7 @@ pub struct Transport {
     session: crate::Session,
 }
 
-/// Creates a new alloy `RpcClient` using the given session as the transport layer.
+/// Creates a new Alloy [`RpcClient`] using the given session as the transport layer.
 ///
 /// ```rust,no_run
 /// # let _ = async {
@@ -26,8 +22,7 @@ pub struct Transport {
 /// #     .await
 /// #     ?;
 /// let client = openlv::provider::rpc_client(session);
-/// let provider = alloy::providers::ProviderBuilder::new().connect_client(client);
-/// # let _ = provider;
+/// # let _ = client;
 /// # Ok::<(), openlv::OpenLvError>(())
 /// # };
 /// ```
