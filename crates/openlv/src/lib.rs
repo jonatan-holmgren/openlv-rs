@@ -56,10 +56,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 */
 
+#[cfg(any(feature = "alloy-1", feature = "alloy-2"))]
+#[path = "provider/mod.rs"]
+pub mod alloy;
 pub mod encryption;
 pub mod errors;
-#[cfg(feature = "provider")]
-pub mod provider;
 pub mod session;
 pub mod signaling;
 pub mod transport;
