@@ -459,6 +459,18 @@ impl Session {
             .await
     }
 
+    /// Send a JSON-RPC 2.0 request and return its complete response envelope.
+    ///
+    /// Unlike [`Self::send`], which returns the peer's response payload, this
+    /// preserves the request ID and wraps the result or error according to the
+    /// JSON-RPC 2.0 response format.
+    pub async fn send_json_rpc(&self, request: Value) -> Result<Value, OpenLvError> {
+        let id = json_rpc_request_id(&request)?;
+        let response = self.send(request).await?;
+
+        json_rpc_response(id, response)
+    }
+
     pub async fn send_with_timeouts(
         &self,
         message: Value,
@@ -523,6 +535,61 @@ impl Session {
     pub fn subscribe_requests(&self) -> broadcast::Receiver<Value> {
         self.inner.request_tx.subscribe()
     }
+}
+
+fn json_rpc_request_id(request: &Value) -> Result<Value, OpenLvError> {
+    let Some(request) = request.as_object() else {
+        return Err(OpenLvError::Session(
+            "JSON-RPC request must be an object".into(),
+        ));
+    };
+    if request.get("jsonrpc") != Some(&Value::String("2.0".into())) {
+        return Err(OpenLvError::Session(
+            "JSON-RPC request must use version 2.0".into(),
+        ));
+    }
+    if !matches!(request.get("method"), Some(Value::String(_))) {
+        return Err(OpenLvError::Session(
+            "JSON-RPC request must include a method".into(),
+        ));
+    }
+
+    request
+        .get("id")
+        .cloned()
+        .ok_or_else(|| OpenLvError::Session("JSON-RPC request must include an id".into()))
+}
+
+fn json_rpc_response(id: Value, response: Value) -> Result<Value, OpenLvError> {
+    if let Some(response) = response
+        .as_object()
+        .filter(|response| response.get("jsonrpc") == Some(&Value::String("2.0".into())))
+    {
+        if response.get("id") != Some(&id) {
+            return Err(OpenLvError::Session(
+                "JSON-RPC response ID does not match request".into(),
+            ));
+        }
+
+        match (
+            response.contains_key("result"),
+            response.contains_key("error"),
+        ) {
+            (true, false) | (false, true) => return Ok(response.clone().into()),
+            _ => {
+                return Err(OpenLvError::Session(
+                    "JSON-RPC response must contain exactly one of result or error".into(),
+                ));
+            }
+        }
+    }
+
+    Ok(match response {
+        Value::Object(ref response) if response.contains_key("error") => {
+            serde_json::json!({ "jsonrpc": "2.0", "id": id, "error": response["error"] })
+        }
+        result => serde_json::json!({ "jsonrpc": "2.0", "id": id, "result": result }),
+    })
 }
 
 impl Drop for SessionInner {
@@ -777,7 +844,9 @@ fn select_transport_id<'a>(
 
 #[cfg(test)]
 mod tests {
-    use super::select_transport_id;
+    use serde_json::json;
+
+    use super::{json_rpc_request_id, json_rpc_response, select_transport_id};
 
     #[test]
     fn selects_the_first_host_preference_supported_by_the_client() {
@@ -798,5 +867,86 @@ mod tests {
         let host = ["wrtc"];
         let client = vec!["ws".to_string()];
         assert_eq!(select_transport_id(true, &host, &client), None);
+    }
+
+    #[test]
+    fn wraps_json_rpc_results_with_the_request_id() {
+        assert_eq!(
+            json_rpc_response(
+                1.into(),
+                json!(["0x122B5aA1751325Ba81C89e5715c5f9e331af045E"])
+            )
+            .expect("raw result should be wrapped"),
+            json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "result": ["0x122B5aA1751325Ba81C89e5715c5f9e331af045E"],
+            })
+        );
+    }
+
+    #[test]
+    fn wraps_json_rpc_errors_with_the_request_id() {
+        assert_eq!(
+            json_rpc_response(
+                json!("request-1"),
+                json!({ "error": { "code": -32603, "message": "Internal error" } })
+            )
+            .expect("raw error should be wrapped"),
+            json!({
+                "jsonrpc": "2.0",
+                "id": "request-1",
+                "error": { "code": -32603, "message": "Internal error" },
+            })
+        );
+    }
+
+    #[test]
+    fn preserves_pre_enveloped_json_rpc_responses() {
+        let response = json!({ "jsonrpc": "2.0", "id": 1, "result": "0x1" });
+        assert_eq!(
+            json_rpc_response(1.into(), response.clone())
+                .expect("matching JSON-RPC response should be preserved"),
+            response
+        );
+    }
+
+    #[test]
+    fn rejects_pre_enveloped_responses_with_another_request_id() {
+        let error = json_rpc_response(
+            1.into(),
+            json!({ "jsonrpc": "2.0", "id": 2, "result": "0x1" }),
+        )
+        .expect_err("a response must be correlated to the request ID");
+
+        assert_eq!(
+            error.to_string(),
+            "session error: JSON-RPC response ID does not match request"
+        );
+    }
+
+    #[test]
+    fn rejects_pre_enveloped_responses_without_exactly_one_outcome() {
+        let error = json_rpc_response(1.into(), json!({ "jsonrpc": "2.0", "id": 1 }))
+            .expect_err("a JSON-RPC response requires a result or error");
+
+        assert_eq!(
+            error.to_string(),
+            "session error: JSON-RPC response must contain exactly one of result or error"
+        );
+    }
+
+    #[test]
+    fn rejects_json_rpc_requests_without_an_id() {
+        let error = json_rpc_request_id(&json!({
+            "jsonrpc": "2.0",
+            "method": "eth_chainId",
+        }))
+        .expect_err("requests without an ID cannot have a JSON-RPC response");
+
+        assert_eq!(
+            error.to_string(),
+            "session error: JSON-RPC request must include an id"
+        );
     }
 }

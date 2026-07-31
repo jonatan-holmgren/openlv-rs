@@ -66,23 +66,12 @@ async fn dispatch_one(
     session: &crate::Session,
     req: SerializedRequest,
 ) -> Result<Response, TransportError> {
-    let id = req.id().clone();
     let req_val =
         serde_json::from_str(req.into_serialized().get()).map_err(TransportErrorKind::custom)?;
     let resp_val = session
-        .send(req_val)
+        .send_json_rpc(req_val)
         .await
         .map_err(TransportErrorKind::custom)?;
-    let envelope = response_envelope(id, resp_val);
 
-    serde_json::from_value(envelope).map_err(TransportErrorKind::custom)
-}
-
-fn response_envelope(id: alloy_json_rpc_1::Id, value: serde_json::Value) -> serde_json::Value {
-    match value {
-        serde_json::Value::Object(ref map) if map.contains_key("error") => {
-            serde_json::json!({ "jsonrpc": "2.0", "id": id, "error": map["error"] })
-        }
-        result => serde_json::json!({ "jsonrpc": "2.0", "id": id, "result": result }),
-    }
+    serde_json::from_value(resp_val).map_err(TransportErrorKind::custom)
 }
