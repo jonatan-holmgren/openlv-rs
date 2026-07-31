@@ -14,19 +14,28 @@ path = "src/lib.rs"
 
 [features]
 default = ["runtime-tokio"]
-provider = [
-    "dep:alloy-json-rpc",
-    "dep:alloy-rpc-client",
-    "dep:alloy-transport",
+alloy-1 = [
+    "dep:alloy-json-rpc-1",
+    "dep:alloy-rpc-client-1",
+    "dep:alloy-transport-1",
+    "dep:tower",
+]
+alloy-2 = [
+    "dep:alloy-json-rpc-2",
+    "dep:alloy-rpc-client-2",
+    "dep:alloy-transport-2",
     "dep:tower",
 ]
 runtime-tokio = ["webrtc/runtime-tokio"]
 runtime-smol = ["webrtc/runtime-smol"]
 
 [dependencies]
-alloy-json-rpc = { version = "1.8", optional = true }
-alloy-rpc-client = { version = "1.8", default-features = false, optional = true }
-alloy-transport = { version = "1.8", default-features = false, optional = true }
+alloy-json-rpc-1 = { package = "alloy-json-rpc", version = "1.8", optional = true }
+alloy-rpc-client-1 = { package = "alloy-rpc-client", version = "1.8", default-features = false, optional = true }
+alloy-transport-1 = { package = "alloy-transport", version = "1.8", default-features = false, optional = true }
+alloy-json-rpc-2 = { package = "alloy-json-rpc", version = "2.0", optional = true }
+alloy-rpc-client-2 = { package = "alloy-rpc-client", version = "2.0", default-features = false, optional = true }
+alloy-transport-2 = { package = "alloy-transport", version = "2.0", default-features = false, optional = true }
 tower = { version = "0.5", optional = true }
 aes-gcm = "0.10"
 async-trait = "0.1"
