@@ -2,7 +2,7 @@ use regex::Regex;
 
 use crate::OpenLvError;
 
-use super::NtfyConnectionInfo;
+use super::{NtfyConnectionInfo, NtfyCredentials};
 
 pub fn parse_ntfy_url(url: &str) -> Result<NtfyConnectionInfo, OpenLvError> {
     let regex = Regex::new(
@@ -42,10 +42,46 @@ pub fn parse_ntfy_url(url: &str) -> Result<NtfyConnectionInfo, OpenLvError> {
         }
     });
 
+    let credentials = match (captures.name("user"), captures.name("password")) {
+        (Some(user), Some(password)) => Some(NtfyCredentials::UserPassword {
+            user: user.as_str().to_string(),
+            password: password.as_str().to_string(),
+        }),
+        (None, Some(token)) => Some(NtfyCredentials::Token(token.as_str().to_string())),
+        _ => None,
+    };
+
     Ok(NtfyConnectionInfo {
         host,
         protocol,
         ws_protocol,
+        credentials,
         parameters,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_token_credentials() {
+        let info = parse_ntfy_url("ntfy://token@ntfy.example.com").unwrap();
+
+        assert!(matches!(
+            info.credentials,
+            Some(NtfyCredentials::Token(token)) if token == "token"
+        ));
+    }
+
+    #[test]
+    fn parses_user_password_credentials() {
+        let info = parse_ntfy_url("ntfys://user:password@ntfy.example.com").unwrap();
+
+        assert!(matches!(
+            info.credentials,
+            Some(NtfyCredentials::UserPassword { user, password })
+                if user == "user" && password == "password"
+        ));
+    }
 }
