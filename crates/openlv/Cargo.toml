@@ -82,6 +82,7 @@ name = "dapp"
 path = "../../examples/app/main.rs"
 
 [dev-dependencies]
+tokio = { version = "1", features = ["test-util"] }
 qrcode = { version = "0.14.1", default-features = false }
 alloy-primitives = "1"
 alloy-signer = "1"
