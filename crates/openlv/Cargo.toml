@@ -71,7 +71,8 @@ tokio = { version = "1", features = [
     "time",
     "sync",
 ] }
-tokio-tungstenite = { version = "0.26", features = ["rustls-tls-webpki-roots"] }
+
+tokio-tungstenite = { version = "0.28", features = ["rustls-tls-webpki-roots"] }
 
 [[example]]
 name = "client"
