@@ -16,7 +16,7 @@ impl From<&EncryptionKey> for PublicKeyHash {
 
 pub fn hash_public_key(public_key: &EncryptionKey) -> String {
     let mut hasher = Sha256::new();
-    hasher.update(public_key.to_string().as_bytes());
+    hasher.update(public_key.as_bytes());
     let digest = hasher.finalize();
     let hash_hex: String = digest.iter().map(|byte| format!("{byte:02x}")).collect();
     hash_hex.chars().take(HASH_LENGTH).collect()
@@ -48,7 +48,32 @@ pub fn init_hash(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::encryption::KeyPair;
+    use crate::encryption::{KeyPair, to_base64};
+
+    #[test]
+    fn test_hash_uses_raw_key_bytes() {
+        // sha256 of the 32 raw key bytes, not of the base64 serialization.
+        let mut key_bytes = [0u8; 32];
+        for (i, b) in key_bytes.iter_mut().enumerate() {
+            *b = i as u8;
+        }
+        let expected_hex: String = Sha256::digest(key_bytes)
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect();
+
+        let key = EncryptionKey::from_base64(&to_base64(&key_bytes)).unwrap();
+        let hash = hash_public_key(&key);
+        assert_eq!(hash, expected_hex[..16]);
+        assert_eq!(hash, "630dcd2966c43366");
+        assert_ne!(
+            hash,
+            Sha256::digest(key.to_string().as_bytes())
+                .iter()
+                .map(|b| format!("{b:02x}"))
+                .collect::<String>()[..16]
+        );
+    }
 
     #[test]
     fn test_hash_length() {

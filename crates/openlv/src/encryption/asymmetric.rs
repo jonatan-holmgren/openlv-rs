@@ -67,6 +67,10 @@ impl EncryptionKey {
         })
     }
 
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.public_key
+    }
+
     pub fn to_string(&self) -> &str {
         &self.serialized
     }
