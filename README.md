@@ -103,6 +103,7 @@ This repository includes the following packages:
 | Package                                                                                                                 | Description |
 | ----------------------------------------------------------------------------------------------------------------------- | ----------- |
 | [openlv](./crates/openlv) [![crates](https://img.shields.io/crates/v/openlv.svg?color=orange)](https://crates.io/crates/openlv) |             |
+| [openlv-uniffi](./crates/openlv-uniffi) | UniFFI adapter for native-language SDKs |
 
 | Examples                    | Description |
 | --------------------------- | ----------- |
